@@ -10,13 +10,18 @@
   },
   "dependencies": {
     "@slack/web-api": "^6.10.0",
-    "@supabase/supabase-js": "^2.38.0",
+    "@supabase/supabase-js": "^2.50.3",
     "dotenv": "^16.3.1"
   },
   "devDependencies": {
     "nodemon": "^3.0.1"
   },
-  "keywords": ["slack", "bot", "evaluation", "notifications"],
+  "keywords": [
+    "slack",
+    "bot",
+    "evaluation",
+    "notifications"
+  ],
   "author": "",
   "license": "MIT"
-} 
+}
