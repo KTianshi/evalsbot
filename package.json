@@ -1,0 +1,22 @@
+{
+  "name": "evalsbot",
+  "version": "1.0.0",
+  "description": "Slack bot for evaluation system notifications",
+  "main": "evals-bot.js",
+  "scripts": {
+    "start": "node evals-bot.js",
+    "dev": "nodemon evals-bot.js",
+    "test": "node evals-bot.js"
+  },
+  "dependencies": {
+    "@slack/web-api": "^6.10.0",
+    "@supabase/supabase-js": "^2.38.0",
+    "dotenv": "^16.3.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  },
+  "keywords": ["slack", "bot", "evaluation", "notifications"],
+  "author": "",
+  "license": "MIT"
+} 

@@ -1,0 +1,16 @@
+services:
+  - type: cron
+    name: evalsbot
+    env: node
+    schedule: "*/10 * * * *"
+    buildCommand: npm install
+    startCommand: node evals-bot.js
+    envVars:
+      - key: SLACK_BOT_TOKEN
+        sync: false
+      - key: SLACK_CHANNEL_ID
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false 
