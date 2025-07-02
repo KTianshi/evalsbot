@@ -19,7 +19,7 @@ async function checkNewEvaluations() {
     // Query for new results since last check
     const { data: newResults, error } = await supabase
       .from('eval_results')
-      .select('*')
+      .select('eval_result_id, created_at, eval_output')
       .gt('created_at', lastCheckTime.toISOString())
       .order('created_at', { ascending: true });
 
@@ -50,12 +50,18 @@ async function checkNewEvaluations() {
 async function sendEvaluationNotification(result) {
   try {
     // Format the message based on your table structure
-    // Adjust these fields based on your actual eval_results table columns
-    const message = `🎯 **New Evaluation Result**
-• **Task**: ${result.task_name || 'Unknown'}
-• **Score**: ${result.score || 'N/A'}
-• **Status**: ${result.status || 'Unknown'}
-• **Created**: ${new Date(result.created_at).toLocaleString()}`;
+    let evalOutput;
+    try {
+      evalOutput = typeof result.eval_output === 'string' 
+        ? JSON.parse(result.eval_output) 
+        : result.eval_output;
+    } catch (e) {
+      evalOutput = { is_valid: 'Error parsing output' };
+    }
+    
+    const isValid = evalOutput.is_valid;
+    
+    const message = `*New Evaluation Result*\n• ID: ${result.eval_result_id}\n• Valid: ${isValid}\n• Created: ${new Date(result.created_at).toLocaleString()}`;
 
     const slackResult = await slack.chat.postMessage({
       channel: process.env.SLACK_CHANNEL_ID,
