@@ -51,7 +51,6 @@ async function sendReport(results) {
     });
 
     let headerMessage = '*Evaluation Report*\n';
-    headerMessage += `• Generated: ${new Date().toLocaleString()}\n`;
     headerMessage += `• Total results: ${results.length}`;
 
     await slack.chat.postMessage({
