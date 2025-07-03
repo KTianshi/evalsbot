@@ -13,6 +13,27 @@ const supabase = createClient(
 // Track the last check time
 let lastCheckTime = new Date();
 
+async function runSQLQuery() {
+  try {
+    console.log('📊 Running SQL query...');
+    
+    // Run the SQL query directly
+    const { data: results, error } = await supabase
+      .rpc('get_evaluation_summary');
+    
+    if (error) {
+      console.error('❌ SQL query error:', error);
+      return;
+    }
+    
+    console.log(`📈 SQL results count: ${results.length}`);
+    await sendReport(results);
+    
+  } catch (error) {
+    console.error('❌ Error running SQL:', error);
+  }
+}
+
 async function sendReport(results) {
   try {
     console.log('📊 Formatting evaluation report...');
@@ -24,25 +45,77 @@ async function sendReport(results) {
     
     console.log(`📈 Results count: ${results.length}`);
     
-    // Format as a monospaced table with better spacing
-    let message = '*Evaluation Report*\n';
-    message += `• Generated: ${new Date().toLocaleString()}\n`;
-    message += `• Total results: ${results.length}\n\n`;
-    message += '```\n';
-    message += 'sheet_title        eval_model      agent_model     false_pt   true_pt   output_count   yield\n';
-    message += '-----------------  --------------  --------------  ---------  -------   -----------   -----\n';
-    results.forEach(row => {
-      const sheetTitle = row.sheet_title ? row.sheet_title.substring(0, 15) + '...' : 'N/A';
-      message += `${sheetTitle.padEnd(17)}${row.eval_model.toString().padEnd(15)}${row.agent_model.toString().padEnd(15)}${row.false_pt.toFixed(1).padEnd(10)}${row.true_pt.toFixed(1).padEnd(9)}${row.output_count.toString().padEnd(14)}${row.yield.toFixed(1).padEnd(7)}\n`;
+    // Format as a table with proper column widths
+    const tableRows = results.map(row => {
+      const jobId = row.job_id ? (row.job_id.length > 10 ? row.job_id.substring(0, 10) + '...' : row.job_id) : 'N/A';
+      const evalModel = row.eval_model.toString();
+      const agentModel = row.agent_model.toString();
+      const falsePt = row.false_pt.toFixed(1);
+      const truePt = row.true_pt.toFixed(1);
+      const outputCount = row.output_count.toString();
+      const yield = row.yield.toFixed(1);
+      
+      // Use longer columns for text, shorter for numbers
+      // For text columns, use padEnd to ensure consistent width
+      // For numeric columns, use padStart to right-align numbers
+      return `${jobId.padEnd(14)} | ${evalModel.padEnd(25)} | ${agentModel.padEnd(25)} | ${falsePt.padStart(8)} | ${truePt.padStart(7)} | ${outputCount.padStart(12)} | ${yield.padStart(5)}`;
     });
-    message += '```';
+
+    // Send header message (no gray box)
+    let headerMessage = '*Evaluation Report*\n';
+    headerMessage += `• Generated: ${new Date().toLocaleString()}\n`;
+    headerMessage += `• Total results: ${results.length}`;
 
     await slack.chat.postMessage({
       channel: process.env.SLACK_CHANNEL_ID,
-      text: message,
+      text: headerMessage,
       unfurl_links: false,
       unfurl_media: false
     });
+
+    // Send column header as separate message
+    const headerRow = 'job_id         | eval_model                | agent_model               | false_pt | true_pt | output_count | yield\n';
+    const separatorRow = '---------------|---------------------------|---------------------------|----------|---------|--------------|------\n';
+    
+    let columnHeaderMessage = '```\n';
+    columnHeaderMessage += headerRow;
+    columnHeaderMessage += separatorRow;
+    columnHeaderMessage += '```';
+    
+    await slack.chat.postMessage({
+      channel: process.env.SLACK_CHANNEL_ID,
+      text: columnHeaderMessage,
+      unfurl_links: false,
+      unfurl_media: false
+    });
+
+    // Split table into chunks of 20 data rows each
+    const rowsPerChunk = 20;
+    
+    const chunks = [];
+    
+    // Split tableRows into chunks of 20 rows each
+    for (let i = 0; i < tableRows.length; i += rowsPerChunk) {
+      const chunk = tableRows.slice(i, i + rowsPerChunk);
+      chunks.push(chunk);
+    }
+    
+    // Send each chunk as a separate message with gray box
+    for (let i = 0; i < chunks.length; i++) {
+      const chunk = chunks[i];
+      let tableMessage = '```\n';
+      tableMessage += chunk.join('\n');
+      tableMessage += '\n```';
+      
+      console.log(`📏 Table chunk ${i + 1}/${chunks.length} (${chunk.length} rows) length: ${tableMessage.length} characters`);
+      
+      await slack.chat.postMessage({
+        channel: process.env.SLACK_CHANNEL_ID,
+        text: tableMessage,
+        unfurl_links: false,
+        unfurl_media: false
+      });
+    }
 
     console.log('✅ Report sent!');
     
@@ -67,7 +140,7 @@ app.get('/', (req, res) => {
   });
 });
 
-// Webhook endpoint to receive SQL results
+// Webhook endpoint to receive SQL results (for manual triggers)
 app.post('/webhook', async (req, res) => {
   try {
     console.log('📥 Received webhook with SQL results');
@@ -85,8 +158,8 @@ app.post('/webhook', async (req, res) => {
 // Manual trigger endpoint
 app.post('/trigger', async (req, res) => {
   try {
-    // For manual trigger, you could run the SQL query here
-    res.json({ status: 'success', message: 'Use /webhook endpoint to send data' });
+    await runSQLQuery();
+    res.json({ status: 'success', message: 'Report generated and sent' });
   } catch (error) {
     res.status(500).json({ status: 'error', message: error.message });
   }
@@ -96,13 +169,14 @@ app.post('/trigger', async (req, res) => {
 app.listen(PORT, () => {
   console.log(`🤖 EvalsBot web service starting on port ${PORT}...`);
   console.log('📡 Webhook endpoint: POST /webhook');
-  console.log('✅ Ready to receive SQL results!');
+  console.log('🔧 Manual trigger: POST /trigger');
+  console.log('✅ Ready to run automated reports!');
   
   // Run initial report
-  sendReport();
+  runSQLQuery();
   
   // Set up interval for periodic reports (every 20 minutes)
-  setInterval(sendReport, 20 * 60 * 1000);
+  setInterval(runSQLQuery, 20 * 60 * 1000);
   
-  console.log('⏰ Will send reports every 20 minutes');
+  console.log('⏰ Will run SQL query and send reports every 20 minutes');
 }); 
