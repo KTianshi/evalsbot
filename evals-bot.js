@@ -24,16 +24,16 @@ async function sendReport(results) {
     
     console.log(`📈 Results count: ${results.length}`);
     
-    // Format as a monospaced table
+    // Format as a monospaced table with better spacing
     let message = '*Evaluation Report*\n';
     message += `• Generated: ${new Date().toLocaleString()}\n`;
     message += `• Total results: ${results.length}\n\n`;
     message += '```\n';
-    message += 'sheet_title   eval_model   agent_model   false_pt   true_pt   output_count   yield\n';
-    message += '-----------  ----------  -----------  --------   -------   -----------   -----\n';
+    message += 'sheet_title        eval_model      agent_model     false_pt   true_pt   output_count   yield\n';
+    message += '-----------------  --------------  --------------  ---------  -------   -----------   -----\n';
     results.forEach(row => {
-      const sheetTitle = row.sheet_title ? row.sheet_title.substring(0, 8) + '...' : 'N/A';
-      message += `${sheetTitle.padEnd(13)}${row.eval_model.toString().padEnd(13)}${row.agent_model.toString().padEnd(13)}${row.false_pt.toFixed(1).padEnd(10)}${row.true_pt.toFixed(1).padEnd(9)}${row.output_count.toString().padEnd(14)}${row.yield.toFixed(1).padEnd(7)}\n`;
+      const sheetTitle = row.sheet_title ? row.sheet_title.substring(0, 15) + '...' : 'N/A';
+      message += `${sheetTitle.padEnd(17)}${row.eval_model.toString().padEnd(15)}${row.agent_model.toString().padEnd(15)}${row.false_pt.toFixed(1).padEnd(10)}${row.true_pt.toFixed(1).padEnd(9)}${row.output_count.toString().padEnd(14)}${row.yield.toFixed(1).padEnd(7)}\n`;
     });
     message += '```';
 
